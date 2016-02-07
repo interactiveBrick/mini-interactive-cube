@@ -29,9 +29,9 @@ Looking at the cube from the bottom (side #5) left (side #3):
 
 ### Example
 
-So if you want to turn on pixel 11 on the left side (side #3) you would adress the pixel by calculating `side * 16 + pixel`, so 3 * 16 + 11, so we want to enable pixel 59
+So if you want to turn on pixel #11 on the left side (side #3) you would adress the pixel by calculating `side * 16 + pixel`, so 3 * 16 + 11, so we want to enable pixel 59
 
-In the OSC message `/cubeNNNN/leds` that would be the third bit (value 4) of the 7th byte: `/cubeNNNN/leds 0 0 0 0 0 0 4 0 0 0 0 0`
+In the OSC message `/cubeNNNN/leds` that would be the fourth bit (value 8) of the 7th byte: `/cubeNNNN/leds 0 0 0 0 0 0 8 0 0 0 0 0`
 
 
 
