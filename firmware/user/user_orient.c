@@ -1,4 +1,3 @@
-
 #include "platform.h"
 #include "c_string.h"
 #include "c_stdlib.h"
@@ -13,11 +12,134 @@
 #include "driver/uart.h"
 #include "mem.h"
 
-// #include "platform/platform.h"
-// #include "driver/i2c_master.h"
+// From:
+// https://github.com/adafruit/Adafruit_ADXL345
+// https://github.com/adafruit/Adafruit_L3GD20
+
+/*=========================================================================
+I2C ADDRESS/BITS
+-----------------------------------------------------------------------*/
+#define ADXL345_ADDRESS                 (0x53)    // Assumes ALT address pin low
+/*=========================================================================*/
+
+/*=========================================================================
+REGISTERS
+-----------------------------------------------------------------------*/
+#define ADXL345_REG_DEVID               (0x00)    // Device ID
+#define ADXL345_REG_THRESH_TAP          (0x1D)    // Tap threshold
+#define ADXL345_REG_OFSX                (0x1E)    // X-axis offset
+#define ADXL345_REG_OFSY                (0x1F)    // Y-axis offset
+#define ADXL345_REG_OFSZ                (0x20)    // Z-axis offset
+#define ADXL345_REG_DUR                 (0x21)    // Tap duration
+#define ADXL345_REG_LATENT              (0x22)    // Tap latency
+#define ADXL345_REG_WINDOW              (0x23)    // Tap window
+#define ADXL345_REG_THRESH_ACT          (0x24)    // Activity threshold
+#define ADXL345_REG_THRESH_INACT        (0x25)    // Inactivity threshold
+#define ADXL345_REG_TIME_INACT          (0x26)    // Inactivity time
+#define ADXL345_REG_ACT_INACT_CTL       (0x27)    // Axis enable control for activity and inactivity detection
+#define ADXL345_REG_THRESH_FF           (0x28)    // Free-fall threshold
+#define ADXL345_REG_TIME_FF             (0x29)    // Free-fall time
+#define ADXL345_REG_TAP_AXES            (0x2A)    // Axis control for single/double tap
+#define ADXL345_REG_ACT_TAP_STATUS      (0x2B)    // Source for single/double tap
+#define ADXL345_REG_BW_RATE             (0x2C)    // Data rate and power mode control
+#define ADXL345_REG_POWER_CTL           (0x2D)    // Power-saving features control
+#define ADXL345_REG_INT_ENABLE          (0x2E)    // Interrupt enable control
+#define ADXL345_REG_INT_MAP             (0x2F)    // Interrupt mapping control
+#define ADXL345_REG_INT_SOURCE          (0x30)    // Source of interrupts
+#define ADXL345_REG_DATA_FORMAT         (0x31)    // Data format control
+#define ADXL345_REG_DATAX0              (0x32)    // X-axis data 0
+#define ADXL345_REG_DATAX1              (0x33)    // X-axis data 1
+#define ADXL345_REG_DATAY0              (0x34)    // Y-axis data 0
+#define ADXL345_REG_DATAY1              (0x35)    // Y-axis data 1
+#define ADXL345_REG_DATAZ0              (0x36)    // Z-axis data 0
+#define ADXL345_REG_DATAZ1              (0x37)    // Z-axis data 1
+#define ADXL345_REG_FIFO_CTL            (0x38)    // FIFO control
+#define ADXL345_REG_FIFO_STATUS         (0x39)    // FIFO status
+/*=========================================================================*/
+
+/*=========================================================================
+REGISTERS
+-----------------------------------------------------------------------*/
+#define ADXL345_MG2G_MULTIPLIER (0.004)  // 4mg per lsb
+/*=========================================================================*/
 
 
+/* Used with register 0x2C (ADXL345_REG_BW_RATE) to set bandwidth */
+typedef enum
+{
+  ADXL345_DATARATE_3200_HZ    = 0b1111, // 1600Hz Bandwidth   140µA IDD
+  ADXL345_DATARATE_1600_HZ    = 0b1110, //  800Hz Bandwidth    90µA IDD
+  ADXL345_DATARATE_800_HZ     = 0b1101, //  400Hz Bandwidth   140µA IDD
+  ADXL345_DATARATE_400_HZ     = 0b1100, //  200Hz Bandwidth   140µA IDD
+  ADXL345_DATARATE_200_HZ     = 0b1011, //  100Hz Bandwidth   140µA IDD
+  ADXL345_DATARATE_100_HZ     = 0b1010, //   50Hz Bandwidth   140µA IDD
+  ADXL345_DATARATE_50_HZ      = 0b1001, //   25Hz Bandwidth    90µA IDD
+  ADXL345_DATARATE_25_HZ      = 0b1000, // 12.5Hz Bandwidth    60µA IDD
+  ADXL345_DATARATE_12_5_HZ    = 0b0111, // 6.25Hz Bandwidth    50µA IDD
+  ADXL345_DATARATE_6_25HZ     = 0b0110, // 3.13Hz Bandwidth    45µA IDD
+  ADXL345_DATARATE_3_13_HZ    = 0b0101, // 1.56Hz Bandwidth    40µA IDD
+  ADXL345_DATARATE_1_56_HZ    = 0b0100, // 0.78Hz Bandwidth    34µA IDD
+  ADXL345_DATARATE_0_78_HZ    = 0b0011, // 0.39Hz Bandwidth    23µA IDD
+  ADXL345_DATARATE_0_39_HZ    = 0b0010, // 0.20Hz Bandwidth    23µA IDD
+  ADXL345_DATARATE_0_20_HZ    = 0b0001, // 0.10Hz Bandwidth    23µA IDD
+  ADXL345_DATARATE_0_10_HZ    = 0b0000  // 0.05Hz Bandwidth    23µA IDD (default value)
+} dataRate_t;
 
+/* Used with register 0x31 (ADXL345_REG_DATA_FORMAT) to set g range */
+typedef enum
+{
+  ADXL345_RANGE_16_G          = 0b11,   // +/- 16g
+  ADXL345_RANGE_8_G           = 0b10,   // +/- 8g
+  ADXL345_RANGE_4_G           = 0b01,   // +/- 4g
+  ADXL345_RANGE_2_G           = 0b00    // +/- 2g (default value)
+} range_t;
+
+#define L3GD20_ADDRESS                (0x6B)        // 1101011
+#define L3GD20_POLL_TIMEOUT           (100)         // Maximum number of read attempts
+#define L3GD20_ID                     0xD4
+#define L3GD20H_ID                    0xD7
+
+#define L3GD20_SENSITIVITY_250DPS  (0.00875F)      // Roughly 22/256 for fixed point match
+#define L3GD20_SENSITIVITY_500DPS  (0.0175F)       // Roughly 45/256
+#define L3GD20_SENSITIVITY_2000DPS (0.070F)        // Roughly 18/256
+#define L3GD20_DPS_TO_RADS         (0.017453293F)  // degress/s to rad/s multiplier
+
+typedef enum
+{                                               // DEFAULT    TYPE
+  L3GD20_REGISTER_WHO_AM_I            = 0x0F,   // 11010100   r
+  L3GD20_REGISTER_CTRL_REG1           = 0x20,   // 00000111   rw
+  L3GD20_REGISTER_CTRL_REG2           = 0x21,   // 00000000   rw
+  L3GD20_REGISTER_CTRL_REG3           = 0x22,   // 00000000   rw
+  L3GD20_REGISTER_CTRL_REG4           = 0x23,   // 00000000   rw
+  L3GD20_REGISTER_CTRL_REG5           = 0x24,   // 00000000   rw
+  L3GD20_REGISTER_REFERENCE           = 0x25,   // 00000000   rw
+  L3GD20_REGISTER_OUT_TEMP            = 0x26,   //            r
+  L3GD20_REGISTER_STATUS_REG          = 0x27,   //            r
+  L3GD20_REGISTER_OUT_X_L             = 0x28,   //            r
+  L3GD20_REGISTER_OUT_X_H             = 0x29,   //            r
+  L3GD20_REGISTER_OUT_Y_L             = 0x2A,   //            r
+  L3GD20_REGISTER_OUT_Y_H             = 0x2B,   //            r
+  L3GD20_REGISTER_OUT_Z_L             = 0x2C,   //            r
+  L3GD20_REGISTER_OUT_Z_H             = 0x2D,   //            r
+  L3GD20_REGISTER_FIFO_CTRL_REG       = 0x2E,   // 00000000   rw
+  L3GD20_REGISTER_FIFO_SRC_REG        = 0x2F,   //            r
+  L3GD20_REGISTER_INT1_CFG            = 0x30,   // 00000000   rw
+  L3GD20_REGISTER_INT1_SRC            = 0x31,   //            r
+  L3GD20_REGISTER_TSH_XH              = 0x32,   // 00000000   rw
+  L3GD20_REGISTER_TSH_XL              = 0x33,   // 00000000   rw
+  L3GD20_REGISTER_TSH_YH              = 0x34,   // 00000000   rw
+  L3GD20_REGISTER_TSH_YL              = 0x35,   // 00000000   rw
+  L3GD20_REGISTER_TSH_ZH              = 0x36,   // 00000000   rw
+  L3GD20_REGISTER_TSH_ZL              = 0x37,   // 00000000   rw
+  L3GD20_REGISTER_INT1_DURATION       = 0x38    // 00000000   rw
+} l3gd20Registers_t;
+
+typedef enum
+{
+  L3DS20_RANGE_250DPS,
+  L3DS20_RANGE_500DPS,
+  L3DS20_RANGE_2000DPS
+} l3gd20Range_t;
 /*
 
 
@@ -43,351 +165,168 @@ bool pixels_dirty = true;
 uint8_t buttons[6*4*4] = { 0, };
 uint8_t lastbuttons[6*4*4] = { 0, };
 uint32_t buttondelay;
+*/
+
 uint32_t updateinterval;
 
-
-
-#define LED_ON  1
-#define LED_OFF 0
-
-#define HT16K33_BLINK_OFF    0
-#define HT16K33_BLINK_2HZ    1
-#define HT16K33_BLINK_1HZ    2
-#define HT16K33_BLINK_HALFHZ 3
-
-
-#define HT16K33_BLINK_CMD       0x80
-#define HT16K33_BLINK_DISPLAYON 0x01
-#define HT16K33_CMD_BRIGHTNESS  0xE0
-
 static const uint32_t endpoint_id = 0;
-*/
 
-/*
-uint32_t trellis_read_keyboard(int addr) {
 
-//	uint8_t k, x;
-//	uint8_t keybuffer[6] = { 0, };
-//	uint16_t bitmask;
-	uint32_t output = 0;
-
+void accelerometer_start() {
 	platform_i2c_send_start(endpoint_id);
-	platform_i2c_send_address(endpoint_id, addr, PLATFORM_I2C_DIRECTION_TRANSMITTER);
-	platform_i2c_send_byte(endpoint_id, 0x40);
+	platform_i2c_send_address(endpoint_id, ADXL345_ADDRESS, PLATFORM_I2C_DIRECTION_TRANSMITTER);
+	platform_i2c_send_byte(endpoint_id, ADXL345_REG_POWER_CTL);
+	platform_i2c_send_byte(endpoint_id, 0x08);
 	platform_i2c_send_stop(endpoint_id);
 
 	platform_i2c_send_start(endpoint_id);
-	platform_i2c_send_address(endpoint_id, addr, PLATFORM_I2C_DIRECTION_RECEIVER);
-	for(k=0; k<6; k++) {
-		keybuffer[k] = platform_i2c_recv_byte(endpoint_id, k < 5);
-	}
-	platform_i2c_send_stop(endpoint_id);
-
-	for(k=0; k<16; k++) {
-		x = buttonLUT[k];
-		bitmask = 1 << (x & 0x0F);
-		if ((keybuffer[x >> 4] & bitmask) == bitmask) {
-			bitmask = 1 << k;
-			output |= bitmask;
-		}
-	}
-
-	return output;
-}
-*/
-
-/*
-void trellis_set_brightness(int addr, int b) {
-	// Wire.beginTransmission(i2c_addr);
-	// Wire.write(HT16K33_CMD_BRIGHTNESS | b);
-	// Wire.endTransmission();
-
-	if (b > 15) b = 15;
-	platform_i2c_send_start(endpoint_id);
-	platform_i2c_send_address(endpoint_id, addr, PLATFORM_I2C_DIRECTION_TRANSMITTER);
-	platform_i2c_send_byte(endpoint_id, HT16K33_CMD_BRIGHTNESS | b);
-	platform_i2c_send_stop(endpoint_id);
-
-}
-
-void trellis_set_blinkrate(int addr, int b) {
-	// Wire.beginTransmission(i2c_addr);
-	// if (b > 3) b = 0; // turn off if not sure
-	// Wire.write(HT16K33_BLINK_CMD | HT16K33_BLINK_DISPLAYON | (b << 1));
-	// Wire.endTransmission();
-
-	if (b > 3) b = 3;
-	platform_i2c_send_start(endpoint_id);
-	platform_i2c_send_address(endpoint_id, addr, PLATFORM_I2C_DIRECTION_TRANSMITTER);
-	platform_i2c_send_byte(endpoint_id, HT16K33_BLINK_CMD | HT16K33_BLINK_DISPLAYON | (b << 1));
+	platform_i2c_send_address(endpoint_id, ADXL345_ADDRESS, PLATFORM_I2C_DIRECTION_TRANSMITTER);
+	platform_i2c_send_byte(endpoint_id, ADXL345_REG_BW_RATE);
+	platform_i2c_send_byte(endpoint_id, ADXL345_DATARATE_50_HZ);
 	platform_i2c_send_stop(endpoint_id);
 }
 
-void trellis_update_leds(int addr, uint32_t leds) {
-	// Wire.beginTransmission(i2c_addr);
-	// Wire.write((uint8_t)0x00); // start at address $00
-	// for (uint8_t i=0; i<8; i++) {
-	// Wire.write(displaybuffer[i] & 0xFF);
-	// Wire.write(displaybuffer[i] >> 8);
-	// }
-	// Wire.endTransmission();
-	// x = pgm_read_byte(&ledLUT[x]);
-  	// displaybuffer[x >> 4] |= _BV(x & 0x0F);
-
-
-	uint8_t i, x;
-	uint16_t bitmask;
-	uint16_t displaybuffer[8] = { 0, };
-
-	for(i=0; i<16; i++) {
-		bitmask = 1 << i;
-		if ((leds & bitmask) == bitmask) {
-			x = ledLUT[i];
-			bitmask = 1 << (x & 0x0F);
-			displaybuffer[x >> 4] |= bitmask;
-		}
-	}
+int16_t accelerometer_readSigned16(int reg) {
 
 	platform_i2c_send_start(endpoint_id);
-	platform_i2c_send_address(endpoint_id, addr, PLATFORM_I2C_DIRECTION_TRANSMITTER);
+	platform_i2c_send_address(endpoint_id, ADXL345_ADDRESS, PLATFORM_I2C_DIRECTION_TRANSMITTER);
+	platform_i2c_send_byte(endpoint_id, reg);
+	platform_i2c_send_stop(endpoint_id);
+
+	platform_i2c_send_start(endpoint_id);
+	platform_i2c_send_address(endpoint_id, ADXL345_ADDRESS, PLATFORM_I2C_DIRECTION_RECEIVER);
+	uint8_t b0 = platform_i2c_recv_byte(endpoint_id, 1);
+	uint8_t b1 = platform_i2c_recv_byte(endpoint_id, 0);
+	platform_i2c_send_stop(endpoint_id);
+
+	uint16_t output = (b1 << 8) | b0;
+
+	int16_t output2 = comm_fromUnsigned16(output);
+	/*
+	if (output < 32767)
+		output2 = + (int)output;
+	else
+		output2 = - (int)(65536 - output);
+	*/
+
+	return output2;
+}
+
+void gyro_start() {
+	platform_i2c_send_start(endpoint_id);
+	platform_i2c_send_address(endpoint_id, L3GD20_ADDRESS, PLATFORM_I2C_DIRECTION_TRANSMITTER);
+	platform_i2c_send_byte(endpoint_id, L3GD20_REGISTER_CTRL_REG1);
+	platform_i2c_send_byte(endpoint_id, 0x0F);
+	platform_i2c_send_stop(endpoint_id);
+
+	platform_i2c_send_start(endpoint_id);
+	platform_i2c_send_address(endpoint_id, L3GD20_ADDRESS, PLATFORM_I2C_DIRECTION_TRANSMITTER);
+	platform_i2c_send_byte(endpoint_id, L3GD20_REGISTER_CTRL_REG2);
+	platform_i2c_send_byte(endpoint_id, 0x08);
+	platform_i2c_send_stop(endpoint_id);
+
+	platform_i2c_send_start(endpoint_id);
+	platform_i2c_send_address(endpoint_id, L3GD20_ADDRESS, PLATFORM_I2C_DIRECTION_TRANSMITTER);
+	platform_i2c_send_byte(endpoint_id, L3GD20_REGISTER_CTRL_REG4);
 	platform_i2c_send_byte(endpoint_id, 0x00);
-	for(i=0; i<8; i++) {
-		platform_i2c_send_byte(endpoint_id, displaybuffer[i] & 255);
-		platform_i2c_send_byte(endpoint_id, displaybuffer[i] >> 8);
-	}
 	platform_i2c_send_stop(endpoint_id);
+
 }
 
-
-void trellis_init(int addr) {
-	// Wire.begin();
-	// Wire.beginTransmission(i2c_addr);
-	// Wire.write(0x21);  // turn on oscillator
-	// Wire.endTransmission();
+uint8_t gyro_read_all(int reg) {
 	platform_i2c_send_start(endpoint_id);
-	platform_i2c_send_address(endpoint_id, addr, PLATFORM_I2C_DIRECTION_TRANSMITTER);
-	platform_i2c_send_byte(endpoint_id, 0x21);
+	platform_i2c_send_address(endpoint_id, L3GD20_ADDRESS, PLATFORM_I2C_DIRECTION_TRANSMITTER);
+	platform_i2c_send_byte(endpoint_id, reg);
 	platform_i2c_send_stop(endpoint_id);
 
-	// blinkRate(HT16K33_BLINK_OFF);
-	trellis_set_blinkrate(addr, HT16K33_BLINK_OFF);
-
-	// setBrightness(15); // max brightness
-	trellis_set_brightness(addr, 15);
-
-	// Wire.beginTransmission(i2c_addr);
-	// Wire.write(0xA1);  // turn on interrupt, active low
-	// Wire.endTransmission();
 	platform_i2c_send_start(endpoint_id);
-	platform_i2c_send_address(endpoint_id, addr, PLATFORM_I2C_DIRECTION_TRANSMITTER);
-	platform_i2c_send_byte(endpoint_id, 0xA1);
+	platform_i2c_send_address(endpoint_id, L3GD20_ADDRESS, PLATFORM_I2C_DIRECTION_RECEIVER);
+	uint8_t b0 = platform_i2c_recv_byte(endpoint_id, 0);
 	platform_i2c_send_stop(endpoint_id);
+
+	return b0;
 }
-
-
-
-
-void display_set_pixel(uint8_t pixel, uint8_t value) {
-	pixels[pixel] = value;
-	pixels_dirty = true;
-}
-
-void display_set_side(uint8_t side, uint32_t value) {
-	int k;
-	for(k=0; k<16; k++) {
-		int bitmask = 1 << k;
-		pixels[side*16+0+k] = (value & bitmask) == bitmask;
-	}
-	pixels_dirty = true;
-}
-
-void display_set_all(uint8_t *values) {
-	int k;
-	for(k=0; k<8; k++) {
-		int bitmask = 1 << k;
-		pixels[0+k] = (values[0] & bitmask) == bitmask;
-		pixels[8+k] = (values[1] & bitmask) == bitmask;
-		pixels[16+k] = (values[2] & bitmask) == bitmask;
-		pixels[24+k] = (values[3] & bitmask) == bitmask;
-		pixels[32+k] = (values[4] & bitmask) == bitmask;
-		pixels[40+k] = (values[5] & bitmask) == bitmask;
-		pixels[48+k] = (values[6] & bitmask) == bitmask;
-		pixels[56+k] = (values[7] & bitmask) == bitmask;
-		pixels[64+k] = (values[8] & bitmask) == bitmask;
-		pixels[72+k] = (values[9] & bitmask) == bitmask;
-		pixels[80+k] = (values[10] & bitmask) == bitmask;
-		pixels[88+k] = (values[11] & bitmask) == bitmask;
-	}
-	pixels_dirty = true;
-}
-
-uint16_t startanim[6] = {
-	1,
-	1+2,
-	1+2+4,
-	1+2+4+8,
-	0xFFFF,
-	0,
-};
-
-*/
 
 void orient_init() {
 
-    os_printf("Initializing orientation...\n");
-/*
-    memset(pixels, 0, 4*4*6);
-    memset(lastbuttons, 0, 4*4*6);
-    memset(buttons, 0, 4*4*6);
+	os_printf("Initializing accelerometer...\n");
+	accelerometer_start();
 
- 	// Wire.begin(D1, D2); // sda, scl
-	platform_i2c_setup(endpoint_id, 1, 2, PLATFORM_I2C_SPEED_SLOW);
+	os_printf("Initializing gyro...\n");
+	gyro_start();
 
-	trellis_init(0x70);
-	trellis_init(0x71);
-	trellis_init(0x72);
-	trellis_init(0x73);
-	trellis_init(0x74);
-	trellis_init(0x75);
-
-	uint8_t f, s, a;
-	for(f=0; f<=7; f++) {
-		system_soft_wdt_feed();
-		for(a=0; a<6; a++) {
-			for(s=0; s<6; s++) {
-				if (f == s) {
-					trellis_update_leds(0x70 + s, startanim[a]);
-				} else {
-					trellis_update_leds(0x70 + s, 0x0000);
-				}
-			}
-		}
-		os_delay_us(500 * 1000);
-    }
-
-	pixels_dirty = true;
-	buttondelay = 0;
 	updateinterval = 0;
-	*/
 }
 
+int16_t last_ax = 0;
+int16_t last_ay = 0;
+int16_t last_az = 0;
+
+int16_t acc_gx = 0;
+int16_t acc_gy = 0;
+int16_t acc_gz = 0;
+
+int16_t last_gx = 0;
+int16_t last_gy = 0;
+int16_t last_gz = 0;
+
 void orient_update() {
-/*
+
 	updateinterval ++;
 
-	// scan keyboard.
+	if (updateinterval % 20 == 0) {
+		int16_t ax = accelerometer_readSigned16(ADXL345_REG_DATAX0);
+		int16_t ay = accelerometer_readSigned16(ADXL345_REG_DATAY0);
+		int16_t az = accelerometer_readSigned16(ADXL345_REG_DATAZ0);
 
-	uint8_t i;
-	uint32_t bitmask;
+		if (ax != last_ax ||
+			ay != last_ay ||
+			az != last_az) {
 
-	if (updateinterval % 10 == 0) {
-		uint32_t keyboardstate;
+			comm_send_acceleration(ax, ay, az);
 
-		keyboardstate = trellis_read_keyboard(0x70);
-		for(i=0; i<16; i++) {
-			bitmask = 1 << i;
-			buttons[0 + i] = ((keyboardstate & bitmask) == bitmask) > 0;
-		}
-		keyboardstate = trellis_read_keyboard(0x71);
-		for(i=0; i<16; i++) {
-			bitmask = 1 << i;
-			buttons[16 + i] = ((keyboardstate & bitmask) == bitmask) > 0;
-		}
-		keyboardstate = trellis_read_keyboard(0x72);
-		for(i=0; i<16; i++) {
-			bitmask = 1 << i;
-			buttons[32 + i] = ((keyboardstate & bitmask) == bitmask) > 0;
-		}
-		keyboardstate = trellis_read_keyboard(0x73);
-		for(i=0; i<16; i++) {
-			bitmask = 1 << i;
-			buttons[48 + i] = ((keyboardstate & bitmask) == bitmask) > 0;
-		}
-		keyboardstate = trellis_read_keyboard(0x74);
-		for(i=0; i<16; i++) {
-			bitmask = 1 << i;
-			buttons[64 + i] = ((keyboardstate & bitmask) == bitmask) > 0;
-		}
-		keyboardstate = trellis_read_keyboard(0x75);
-		for(i=0; i<16; i++) {
-			bitmask = 1 << i;
-			buttons[80 + i] = ((keyboardstate & bitmask) == bitmask) > 0;
-		}
-
-		for(i=0; i<6*16; i++) {
-			if (buttons[i] != lastbuttons[i]) {
-				if (buttondelay > 100) {
-					if (buttons[i]) {
-						// key down
-						comm_send_key(i, 1);
-					} else {
-						// key up
-						comm_send_key(i, 0);
-					}
-				}
-				lastbuttons[i] = buttons[i];
-			}
+			last_ax = ax;
+			last_ay = ay;
+			last_az = az;
 		}
 	}
 
-	if (buttondelay < 1000) {
-		buttondelay ++;
+	if (updateinterval % 3 == 1) {
+
+		platform_i2c_send_start(endpoint_id);
+		platform_i2c_send_address(endpoint_id, L3GD20_ADDRESS, PLATFORM_I2C_DIRECTION_TRANSMITTER);
+		platform_i2c_send_byte(endpoint_id, L3GD20_REGISTER_OUT_X_L | 0x80);
+		platform_i2c_send_stop(endpoint_id);
+
+		platform_i2c_send_start(endpoint_id);
+		platform_i2c_send_address(endpoint_id, L3GD20_ADDRESS, PLATFORM_I2C_DIRECTION_RECEIVER);
+		uint8_t b0 = platform_i2c_recv_byte(endpoint_id, 1);
+		uint8_t b1 = platform_i2c_recv_byte(endpoint_id, 1);
+		uint8_t b2 = platform_i2c_recv_byte(endpoint_id, 1);
+		uint8_t b3 = platform_i2c_recv_byte(endpoint_id, 1);
+		uint8_t b4 = platform_i2c_recv_byte(endpoint_id, 1);
+		uint8_t b5 = platform_i2c_recv_byte(endpoint_id, 0);
+		platform_i2c_send_stop(endpoint_id);
+
+		int16_t gx = comm_fromUnsigned16((b1 << 8) | b0);
+		int16_t gy = comm_fromUnsigned16((b3 << 8) | b2);
+		int16_t gz = comm_fromUnsigned16((b5 << 8) | b4);
+
+		acc_gx = ((acc_gx * 3) / 4) + (gx / 4);
+		acc_gy = ((acc_gy * 3) / 4) + (gy / 4);
+		acc_gz = ((acc_gz * 3) / 4) + (gz / 4);
 	}
 
-	// if (updateinterval % 25 == 15) {
-		if (pixels_dirty) {
-			// send pixels to boards.
-			uint32_t ledstate;
-			ledstate = 0;
-			for(i=0; i<16; i++) {
-				bitmask = 1 << i;
-				if (pixels[0 + i]) {
-					ledstate |= bitmask;
-				}
-			}
-			trellis_update_leds(0x70, ledstate);
-			ledstate = 0;
-			for(i=0; i<16; i++) {
-				bitmask = 1 << i;
-				if (pixels[16 + i]) {
-					ledstate |= bitmask;
-				}
-			}
-			trellis_update_leds(0x71, ledstate);
-			ledstate = 0;
-			for(i=0; i<16; i++) {
-				bitmask = 1 << i;
-				if (pixels[32 + i]) {
-					ledstate |= bitmask;
-				}
-			}
-			trellis_update_leds(0x72, ledstate);
-			ledstate = 0;
-			for(i=0; i<16; i++) {
-				bitmask = 1 << i;
-				if (pixels[48 + i]) {
-					ledstate |= bitmask;
-				}
-			}
-			trellis_update_leds(0x73, ledstate);
-			ledstate = 0;
-			for(i=0; i<16; i++) {
-				bitmask = 1 << i;
-				if (pixels[64 + i]) {
-					ledstate |= bitmask;
-				}
-			}
-			trellis_update_leds(0x74, ledstate);
-			ledstate = 0;
-			for(i=0; i<16; i++) {
-				bitmask = 1 << i;
-				if (pixels[80 + i]) {
-					ledstate |= bitmask;
-				}
-			}
-			trellis_update_leds(0x75, ledstate);
-			pixels_dirty = false;
+	if (updateinterval % 20 == 10) {
+		if (acc_gx != last_gx ||
+			acc_gy != last_gy ||
+			acc_gz != last_gz) {
+
+			comm_send_rotation(acc_gx, acc_gy, acc_gz);
+
+			last_gx = acc_gx;
+			last_gy = acc_gy;
+			last_gz = acc_gz;
 		}
-	// }
-*/
+	}
 }

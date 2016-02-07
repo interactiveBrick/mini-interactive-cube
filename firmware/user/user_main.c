@@ -19,6 +19,7 @@
 #include "user_exceptions.h"
 #include "user_modules.h"
 
+#include "user_configuration.h"
 #include "user_display.h"
 #include "user_comm.h"
 #include "user_orient.h"
@@ -57,7 +58,7 @@ static uint8_t no_init_data = 0xff;
 
 void TEXT_SECTION_ATTR user_start_trampoline (void)
 {
-   __real__xtos_set_exception_handler(EXCCAUSE_LOAD_STORE_ERROR, load_non_32_wide_handler);
+  __real__xtos_set_exception_handler(EXCCAUSE_LOAD_STORE_ERROR, load_non_32_wide_handler);
 
   SPIFlashInfo sfi;
   SPIRead (0, &sfi, sizeof (sfi)); // Cache read not enabled yet, safe to use
@@ -88,7 +89,7 @@ static inline void tcp_random_port_init (void)
 
 static const uint32_t i2c_endpoint_id = 0;
 
-static void ICACHE_FLASH_ATTR  loop(os_event_t *events)
+static void ICACHE_FLASH_ATTR loop(os_event_t *events)
 {
     if (loopcounter % 1000 == 0) {
       os_printf("Hello loop %d\n", loopcounter);
@@ -149,34 +150,6 @@ void nodemcu_init(void)
         system_restart ();
     }
 
-    /*
-    #if defined( BUILD_WOFS )
-    ///    romfs_init();
-
-        // if( !wofs_format() )
-        // {
-        //     NODE_ERR( "\ni*** ERROR ***: unable to erase the flash. WOFS might be compromised.\n" );
-        //     NODE_ERR( "It is advised to re-flash the NodeWifi image.\n" );
-        // }
-        // else
-        //     NODE_ERR( "format done.\n" );
-
-        // test_romfs();
-    #elif defined ( BUILD_SPIFFS )
-        // fs_mount();
-        // test_spiffs();
-    #endif
-        */
-        // endpoint_setup();
-
-        // char* lua_argv[] = { (char *)"lua", (char *)"-e", (char *)"print(collectgarbage'count');ttt={};for i=1,100 do table.insert(ttt,i*2 -1);print(i);end for k, v in pairs(ttt) do print('<'..k..' '..v..'>') end print(collectgarbage'count');", NULL };
-        // lua_main( 3, lua_argv );
-        // char* lua_argv[] = { (char *)"lua", (char *)"-i", NULL };
-        // lua_main( 2, lua_argv );
-        // char* lua_argv[] = { (char *)"lua", (char *)"-e", (char *)"pwm.setup(0,100,50) pwm.start(0) pwm.stop(0)", NULL };
-        // lua_main( 3, lua_argv );
-        // NODE_DBG("Flash sec num: 0x%x\n", flash_get_sec_num());
-
     NODE_DBG("Yoink 2.\n");
     tcp_random_port_init ();
 
@@ -196,16 +169,58 @@ void nodemcu_init(void)
 *******************************************************************************/
 void user_init(void)
 {
-    // UartBautRate br = BIT_RATE_115200;
-    uart_init (BIT_RATE_115200, BIT_RATE_115200, USER_TASK_PRIO_0, 0);
-
-    // uart_init(BIT_RATE_9600,0);
     os_delay_us(1000*1000);
+    uart_init (BIT_RATE_115200, BIT_RATE_115200, USER_TASK_PRIO_0, 0);
+    os_delay_us(100*1000);
+
+    os_printf("Interactive Cube starting..\n");
+
+    config_init();
+
+    platform_i2c_setup(i2c_endpoint_id, 1, 2, PLATFORM_I2C_SPEED_SLOW);
+    display_init();
 
     NODE_DBG("SDK version: %s\n", system_get_sdk_version());
     system_print_meminfo();
 
-    os_printf("Heap size: %d.\n",system_get_free_heap_size());
+    os_printf("Heap size: %d.\n", system_get_free_heap_size());
+
+#ifndef NODE_DEBUG
+    system_set_os_print(1);
+#endif
+
+    int b;
+    for(b=0; b<4; b++) {
+        display_set_pixel(0, 1);
+        display_update_inner();
+
+        os_delay_us(500*1000);
+        display_update_inner();
+
+        display_set_pixel(0, 0);
+        display_update_inner();
+
+        os_delay_us(500*1000);
+        display_update_inner();
+    }
+
+    if (display_is_key_down(0)) {
+        // enter setup mode, show as blinking...!
+        configui_init();
+        return;
+    }
+
+    display_set_pixel(0, 1);
+    display_set_pixel(1, 1);
+    display_set_pixel(2, 1);
+    display_update_inner();
+
+    // uart_init(BIT_RATE_9600,0);
+    os_delay_us(100*1000);
+
+    os_delay_us(1000*1000);
+
+    display_anim();
     //  os_delay_us(500*1000);
 
     NODE_DBG("Hello Wurst.\n");
@@ -213,15 +228,15 @@ void user_init(void)
 
     // Set up I2C
     // Wire.begin(D1, D2); // sda, scl
-    platform_i2c_setup(i2c_endpoint_id  , 1, 2, PLATFORM_I2C_SPEED_SLOW);
 
-    display_init();
+    display_set_pixel(0, 0);
+    display_set_pixel(1, 0);
+    display_set_pixel(2, 0);
+    display_set_pixel(3, 0);
+    display_update();
+
     comm_init();
     orient_init();
-
-#ifndef NODE_DEBUG
-    system_set_os_print(1);
-#endif
 
     // system_init_done_cb(nodemcu_init);
 

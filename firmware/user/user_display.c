@@ -243,24 +243,7 @@ uint16_t startanim[6] = {
 	0,
 };
 
-
-void display_init() {
-
-    os_printf("Initializing display...\n");
-
-    memset(pixels, 0, 4*4*6);
-    memset(lastbuttons, 0, 4*4*6);
-    memset(buttons, 0, 4*4*6);
-
- 	// Wire.begin(D1, D2); // sda, scl
-	platform_i2c_setup(endpoint_id, 1, 2, PLATFORM_I2C_SPEED_SLOW);
-
-	trellis_init(0x70);
-	trellis_init(0x71);
-	trellis_init(0x72);
-	trellis_init(0x73);
-	trellis_init(0x74);
-	trellis_init(0x75);
+void display_anim() {
 
 	uint8_t f, s, a;
 	for(f=0; f<=7; f++) {
@@ -282,62 +265,94 @@ void display_init() {
 	updateinterval = 0;
 }
 
-void display_update() {
+void display_init() {
 
+    os_printf("Initializing display...\n");
+
+    memset(pixels, 0, 4*4*6);
+    memset(lastbuttons, 0, 4*4*6);
+    memset(buttons, 0, 4*4*6);
+
+	trellis_init(0x70);
+	trellis_init(0x71);
+	trellis_init(0x72);
+	trellis_init(0x73);
+	trellis_init(0x74);
+	trellis_init(0x75);
+
+	uint8_t s;
+	for(s=0; s<6; s++) {
+		trellis_update_leds(0x70 + s, 0x0000);
+	}
+
+	pixels_dirty = true;
+	buttondelay = 0;
+	updateinterval = 0;
+}
+
+uint8_t display_is_key_down(uint8_t key) {
+	return buttons[key] > 0 ? 1 : 0;
+}
+
+void display_update() {
+	if (updateinterval % 10 == 0) {
+		display_update_inner();
+	}
 	updateinterval ++;
+}
+
+void display_update_inner() {
 
 	// scan keyboard.
 
 	uint8_t i;
 	uint32_t bitmask;
 
-	if (updateinterval % 10 == 0) {
-		uint32_t keyboardstate;
+	uint32_t keyboardstate;
 
-		keyboardstate = trellis_read_keyboard(0x70);
-		for(i=0; i<16; i++) {
-			bitmask = 1 << i;
-			buttons[0 + i] = ((keyboardstate & bitmask) == bitmask) > 0;
-		}
-		keyboardstate = trellis_read_keyboard(0x71);
-		for(i=0; i<16; i++) {
-			bitmask = 1 << i;
-			buttons[16 + i] = ((keyboardstate & bitmask) == bitmask) > 0;
-		}
-		keyboardstate = trellis_read_keyboard(0x72);
-		for(i=0; i<16; i++) {
-			bitmask = 1 << i;
-			buttons[32 + i] = ((keyboardstate & bitmask) == bitmask) > 0;
-		}
-		keyboardstate = trellis_read_keyboard(0x73);
-		for(i=0; i<16; i++) {
-			bitmask = 1 << i;
-			buttons[48 + i] = ((keyboardstate & bitmask) == bitmask) > 0;
-		}
-		keyboardstate = trellis_read_keyboard(0x74);
-		for(i=0; i<16; i++) {
-			bitmask = 1 << i;
-			buttons[64 + i] = ((keyboardstate & bitmask) == bitmask) > 0;
-		}
-		keyboardstate = trellis_read_keyboard(0x75);
-		for(i=0; i<16; i++) {
-			bitmask = 1 << i;
-			buttons[80 + i] = ((keyboardstate & bitmask) == bitmask) > 0;
-		}
+	keyboardstate = trellis_read_keyboard(0x70);
+	for(i=0; i<16; i++) {
+		bitmask = 1 << i;
+		buttons[0 + i] = ((keyboardstate & bitmask) == bitmask) > 0;
+	}
+	keyboardstate = trellis_read_keyboard(0x71);
+	for(i=0; i<16; i++) {
+		bitmask = 1 << i;
+		buttons[16 + i] = ((keyboardstate & bitmask) == bitmask) > 0;
+	}
+	keyboardstate = trellis_read_keyboard(0x72);
+	for(i=0; i<16; i++) {
+		bitmask = 1 << i;
+		buttons[32 + i] = ((keyboardstate & bitmask) == bitmask) > 0;
+	}
+	keyboardstate = trellis_read_keyboard(0x73);
+	for(i=0; i<16; i++) {
+		bitmask = 1 << i;
+		buttons[48 + i] = ((keyboardstate & bitmask) == bitmask) > 0;
+	}
+	keyboardstate = trellis_read_keyboard(0x74);
+	for(i=0; i<16; i++) {
+		bitmask = 1 << i;
+		buttons[64 + i] = ((keyboardstate & bitmask) == bitmask) > 0;
+	}
+	keyboardstate = trellis_read_keyboard(0x75);
+	for(i=0; i<16; i++) {
+		bitmask = 1 << i;
+		buttons[80 + i] = ((keyboardstate & bitmask) == bitmask) > 0;
+	}
 
-		for(i=0; i<6*16; i++) {
-			if (buttons[i] != lastbuttons[i]) {
-				if (buttondelay > 100) {
-					if (buttons[i]) {
-						// key down
-						comm_send_key(i, 1);
-					} else {
-						// key up
-						comm_send_key(i, 0);
-					}
+	for(i=0; i<6*16; i++) {
+		if (buttons[i] != lastbuttons[i]) {
+			if (buttondelay > 100) {
+				if (buttons[i]) {
+					// key down
+					comm_send_key(i, 1);
+				} else {
+					// key up
+					comm_send_key(i, 0);
 				}
-				lastbuttons[i] = buttons[i];
 			}
+			lastbuttons[i] = buttons[i];
 		}
 	}
 
@@ -345,60 +360,59 @@ void display_update() {
 		buttondelay ++;
 	}
 
-	// if (updateinterval % 25 == 15) {
-		if (pixels_dirty) {
-			// send pixels to boards.
-			uint32_t ledstate;
-			ledstate = 0;
-			for(i=0; i<16; i++) {
-				bitmask = 1 << i;
-				if (pixels[0 + i]) {
-					ledstate |= bitmask;
-				}
+	if (pixels_dirty) {
+		// send pixels to boards.
+		uint32_t ledstate;
+		ledstate = 0;
+		for(i=0; i<16; i++) {
+			bitmask = 1 << i;
+			if (pixels[0 + i]) {
+				ledstate |= bitmask;
 			}
-			trellis_update_leds(0x70, ledstate);
-			ledstate = 0;
-			for(i=0; i<16; i++) {
-				bitmask = 1 << i;
-				if (pixels[16 + i]) {
-					ledstate |= bitmask;
-				}
-			}
-			trellis_update_leds(0x71, ledstate);
-			ledstate = 0;
-			for(i=0; i<16; i++) {
-				bitmask = 1 << i;
-				if (pixels[32 + i]) {
-					ledstate |= bitmask;
-				}
-			}
-			trellis_update_leds(0x72, ledstate);
-			ledstate = 0;
-			for(i=0; i<16; i++) {
-				bitmask = 1 << i;
-				if (pixels[48 + i]) {
-					ledstate |= bitmask;
-				}
-			}
-			trellis_update_leds(0x73, ledstate);
-			ledstate = 0;
-			for(i=0; i<16; i++) {
-				bitmask = 1 << i;
-				if (pixels[64 + i]) {
-					ledstate |= bitmask;
-				}
-			}
-			trellis_update_leds(0x74, ledstate);
-			ledstate = 0;
-			for(i=0; i<16; i++) {
-				bitmask = 1 << i;
-				if (pixels[80 + i]) {
-					ledstate |= bitmask;
-				}
-			}
-			trellis_update_leds(0x75, ledstate);
-			pixels_dirty = false;
 		}
-	// }
+		trellis_update_leds(0x70, ledstate);
+		ledstate = 0;
+		for(i=0; i<16; i++) {
+			bitmask = 1 << i;
+			if (pixels[16 + i]) {
+				ledstate |= bitmask;
+			}
+		}
+		trellis_update_leds(0x71, ledstate);
+		ledstate = 0;
+		for(i=0; i<16; i++) {
+			bitmask = 1 << i;
+			if (pixels[32 + i]) {
+				ledstate |= bitmask;
+			}
+		}
+		trellis_update_leds(0x72, ledstate);
+		ledstate = 0;
+		for(i=0; i<16; i++) {
+			bitmask = 1 << i;
+			if (pixels[48 + i]) {
+				ledstate |= bitmask;
+			}
+		}
+		trellis_update_leds(0x73, ledstate);
+		ledstate = 0;
+		for(i=0; i<16; i++) {
+			bitmask = 1 << i;
+			if (pixels[64 + i]) {
+				ledstate |= bitmask;
+			}
+		}
+		trellis_update_leds(0x74, ledstate);
+		ledstate = 0;
+		for(i=0; i<16; i++) {
+			bitmask = 1 << i;
+			if (pixels[80 + i]) {
+				ledstate |= bitmask;
+			}
+		}
+		trellis_update_leds(0x75, ledstate);
+		pixels_dirty = false;
+	}
 
+	system_soft_wdt_feed();
 }
