@@ -15,15 +15,15 @@ The initial cube was made using led panels on each sides, but it lacks one impor
 
 Looking at the cube from the natural angle, from top (side #4) left (side #3) front (side #0):
 
-<img src="https://github.com/interactiveBrick/mini-interactive-cube/raw/master/doc/cube1.png" width="150" height="150" alt="Top/Left/Front" />
+<img src="https://github.com/interactiveBrick/mini-interactive-cube/raw/master/doc/cube1.png" width="300" height="300" alt="Top/Left/Front" />
 
 Looking at the cube from the back (side #2) right (side #1):
 
-<img src="https://github.com/interactiveBrick/mini-interactive-cube/raw/master/doc/cube2.png" width="150" height="150" alt="Back/Right" />
+<img src="https://github.com/interactiveBrick/mini-interactive-cube/raw/master/doc/cube2.png" width="300" height="300" alt="Back/Right" />
 
 Looking at the cube from the bottom (side #5) left (side #3):
 
-<img src="https://github.com/interactiveBrick/mini-interactive-cube/raw/master/doc/cube3.png" width="150" height="150" alt="Bottom/Left" />
+<img src="https://github.com/interactiveBrick/mini-interactive-cube/raw/master/doc/cube3.png" width="300" height="300" alt="Bottom/Left" />
 
 
 
