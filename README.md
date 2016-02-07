@@ -59,8 +59,9 @@ All OSC messages share the prefix `/cubename/` which is a 8 character string tha
 Namespace: `/cubeNNNN/btn`
 
 Arguments:
-  `btn` int32 - Which button
-  `down` int32 - 1 = Button was pressed, 0 = Button was released
+
+* `btn` int32 - Which button
+* `down` int32 - 1 = Button was pressed, 0 = Button was released
 
 
 ### Gyro data
@@ -70,9 +71,10 @@ Arguments:
 Namespace: `/cubeNNNN/rot`
 
 Arguments:
-  `rx` int32 - Relative rotation around X.
-  `ry` int32 - Relative rotation around Y.
-  `rz` int32 - Relative rotation around Z.
+
+* `rx` int32 - Relative rotation around X.
+* `ry` int32 - Relative rotation around Y.
+* `rz` int32 - Relative rotation around Z.
 
 
 ### Accelerometer data
@@ -82,9 +84,10 @@ Arguments:
 Namespace: `/cubeNNNN/acc`
 
 Arguments:
-  `ax` int32 - Relative acceleration X.
-  `ay` int32 - Relative acceleration Y.
-  `az` int32 - Relative acceleration Z.
+
+* `ax` int32 - Relative acceleration X.
+* `ay` int32 - Relative acceleration Y.
+* `az` int32 - Relative acceleration Z.
 
 
 
@@ -95,8 +98,9 @@ Arguments:
 Namespace: `/cubeNNNN/leds`
 
 Arguments:
-  `led` int32 - Pixel to change
-  `on` int32 - 1 = Lit, 0 = Not lit 
+
+* `led` int32 - Pixel to change
+* `on` int32 - 1 = Lit, 0 = Not lit 
 
 
 
@@ -107,19 +111,26 @@ Arguments:
 Namespace: `/cubeNNNN/leds`
 
 Arguments:
-  `side` int32 - Which side to update. (0 - 5)
-  `n0`, `n1` int32 - Two 8bit values, 16 bits, 16 leds.
+
+* `side` int32 - Which side to update. (0 - 5)
+* `n0`, `n1` int32 - Two 8bit values, one bit for each led.
 
 
 
 ### Update entire display
 
-`/cubeNNNN/leds n0 n1 n2 n3 n4 n5 n6 n7 n8 n9 n10 n11`
+`/cubeNNNN/leds ft0 ft1 rt0 rt1 bk0 bk1 lt0 lt1 tp0 tp1 bt0 bt1`
 
 Namespace: `/cubeNNNN/leds`
 
 Arguments:
-  `n0..n11` int32 - Led pixels, 12 8bit values - Two values for each side, 16 bits, 16 leds. (`n0 n1`= front, `n2 n3` = right, `n4 n5` = back, `n6 n7` = left, `n8 n9` = top, `n10 n11` = bottom)
+
+* `ft0`, `ft1` int32 - Front side leds, 8 bits each.
+* `rt0`, `rt1` int32 - Right side leds, 8 bits each.
+* `bk0`, `bk1` int32 - Back side leds, 8 bits each.
+* `lt0`, `lt1` int32 - Left side leds, 8 bits each.
+* `tp0`, `tp1` int32 - Top side leds, 8 bits each.
+* `bt0`, `bt1` int32 - Bottom side leds, 8 bits each.
 
 
 
@@ -130,11 +141,22 @@ When the device boots up, it will blink the first pixel a couple of times, if yo
 
 
 
+## Components
+
+* 1x NodeMCU ESP8266 Devkit
+* 6x Adafruit Trellis + Elastomer Pads for buttons on each side
+* 1x ADXL345 I2C Accelerometer (ADXL345)
+* 1x L3GD20H I2C Gyroscope (Adafruit)
+* 1x USB Powerpack
+
+
 
 
 ### Laser template
 
-![Enclosure](doc/enclosure.png)
+If you want to cut a simple enclosure, there's one included.
+
+<img src="https://github.com/interactiveBrick/mini-interactive-cube/raw/master/doc/enclosure.png" width="600" alt="Enclosure" />
 
 
 
