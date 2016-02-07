@@ -25,6 +25,8 @@ var LevelEditorUI = require('./src/ui/leveleditor.js').LevelEditorUI;
 var BeatUI = require('./src/ui/beat.js').BeatUI;
 
 
+var CUBENAME = 'cube18FE';
+
 
 //
 // Set up application
@@ -81,8 +83,8 @@ http.listen(3000, function(){
 var oscServer = new osc.Server(3333, '0.0.0.0');
 
 oscServer.on("message", function (msg, rinfo) {
-  // console.log("TUIO message:", msg);
-  if (msg[0] == '/cube1/btn') {
+  console.log("TUIO message:", msg);
+  if (msg[0] == '/' + CUBENAME + '/btn') {
     if (msg[2] == 1) {
       input.buttonDown(msg[1]);
     } else {
@@ -182,7 +184,7 @@ OSCDisplay.prototype.render = function(displayinfo) {
     }
     console.log('');
 
-    this.queue.push([ '/cube1/leds',
+    this.queue.push([ '/' + CUBENAME + '/leds',
       bytes[0], bytes[1], bytes[2], bytes[3],
       bytes[4], bytes[5], bytes[6], bytes[7],
       bytes[8], bytes[9], bytes[10], bytes[11] ]);
