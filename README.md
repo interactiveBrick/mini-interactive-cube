@@ -33,15 +33,12 @@ So if you want to turn on pixel #11 on the left side (side #3) you would adress 
 
 In the OSC message `/cubeNNNN/leds` that would be the fourth bit (value 8) of the 7th byte: `/cubeNNNN/leds 0 0 0 0 0 0 8 0 0 0 0 0`
 
-
-
-
-
-
-
-### Laser template
-
-![Enclosure](doc/enclosure.png)
+Front, pixel 0 to 15.
+Right, pixel 16 to 31.
+Back, pixel 32 to 47.
+Left, pixel 48 to 63.
+Top, pixel 64 to 79.
+Bottom, pixel 80 to 96.
 
 
 
@@ -129,6 +126,15 @@ Arguments:
 ## Configuration
 
 When the device boots up, it will blink the first pixel a couple of times, if you hold it down at that time, the firmware will go into configuration mode, from there it will set up a wireless network named `Cube Setup - NNNN`, connect to that network and open `http://192.168.0.1` to configure your device.
+
+
+
+
+
+
+### Laser template
+
+![Enclosure](doc/enclosure.png)
 
 
 
