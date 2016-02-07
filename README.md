@@ -145,7 +145,7 @@ When the device boots up, it will blink the first pixel a couple of times, if yo
 
 * 1x NodeMCU ESP8266 Devkit
 * 6x Adafruit Trellis + Elastomer Pads for buttons on each side
-* 1x ADXL345 I2C Accelerometer (ADXL345)
+* 1x ADXL345 I2C Accelerometer (Sparkfun)
 * 1x L3GD20H I2C Gyroscope (Adafruit)
 * 1x USB Powerpack
 
